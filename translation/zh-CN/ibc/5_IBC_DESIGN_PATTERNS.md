@@ -1,10 +1,10 @@
 # 5：IBC设计模式
 
-**This is a discussion of design patterns used throughout the interblockchain communication protocol specification.**
+**这是区块链间通信协议规范中使用的设计模式的讨论。**
 
 **有关IBC规范中使用的术语的定义，请参见[此处](./1_IBC_TERMINOLOGY.md) 。**
 
-**For an architectural overview, see [here](./2_IBC_ARCHITECTURE.md).**
+**有关架构的概述，请参见[此处](./2_IBC_ARCHITECTURE.md) 。**
 
 **有关广泛的协议设计原则，请参见[此处](./3_IBC_DESIGN_PRINCIPLES.md) 。**
 
@@ -12,61 +12,35 @@
 
 ## 验证而非计算
 
-Computation on distributed ledgers is expensive: any computations performed
-in the IBC handler must be replicated across all full nodes. Therefore, when it
-is possible to merely *verify* a computational result instead of performing the
-computation, the IBC handler should elect to do so and require extra parameters as necessary.
+分布式账本的计算非常昂贵：IBC处理程序中执行的任何计算都必须复制到所有全节点。因此，当它能仅*验证*计算结果而不执行计算时，IBC处理程序应选择这样做，并在需要时请求额外的参数。
 
-In some cases, there is no cost difference - adding two numbers and checking that two numbers sum to
-a particular value both require one addition, so the IBC handler should elect to do whatever is simpler.
-However, in other cases, performing the computation may be much more expensive. For example, connection
-and channel identifiers must be uniquely generated. This could be implemented by
-the IBC handler hashing the genesis state plus a nonce when a new channel is created, to create
-a pseudorandom identifier - but that requires computing a hash function on-chain, which is expensive.
-Instead, the IBC handler should require that the random identifier generation be performed
-off-chain and merely check that a new channel creation attempt doesn't use a previously
-reserved identifier.
+在某些情况下，验证和计算没有成本区别-将两个数字相加并验证两个数字之和等于一个特定的值都需要一次加法，此时IBC处理程序应该选择那个比较简单的方法。
+但是，在其他情况下，执行计算可能会更加昂贵。例如，连接和通道必须生成唯一的标识符。这可以通过以下方式实现，在创建新通道时，IBC处理程序会哈希创始区块状态并加上随机数来生成伪随机标识符-但这需要在链上计算哈希函数，这个计算很昂贵。相反，IBC处理程序应要求在链下执行生成随机标识符，在创建新的通道时仅验证没有使用之前用过的标识符。
 
-## Call receiver
+## 调用接收器
 
-Essential to the functionality of the IBC handler is an interface to other modules
-running on the same machine, so that it can accept requests to send packets and can
-route incoming packets to modules. This interface should be as minimal as possible
-in order to reduce implementation complexity and requirements imposed on host state machines.
+IBC处理程序功能的基本功能是在同一台计算机上运行的其他模块的接口，因此它可以接受模块发送数据包的请求，并且可以将传入的数据包路由到模块。该接口应尽可能最小化，以降低实现的复杂性和对主机状态机的要求。
 
-For this reason, the core IBC logic uses a receive-only call pattern that differs
-slightly from the intuitive dataflow. As one might expect, modules call into the IBC handler to create
-connections, channels, and send packets. However, instead of the IBC handler, upon receipt
-of a packet from another chain, selecting and calling into the appropriate module,
-the module itself must call `recvPacket` on the IBC handler (likewise for accepting
-channel creation handshakes). When `recvPacket` is called, the IBC handler will check
-that the calling module is authorised to receive and process the packet (based on included proofs and
-known state of connections / channels), perform appropriate state updates (incrementing
-sequence numbers to prevent replay), and return control to the module or throw on error.
-The IBC handler never calls into modules directly.
+因此，核心IBC逻辑采用只接收调用的模式，这个和直观的数据流有所不同
+。和大家想的一样，模块调用IBC处理程序来创建连接，通道和发送数据包。但是，不是IBC处理程序收到来自另一个链的数据包，选择并调用适当的模块，而是模块本身必须调用IBC处理程序上的`recvPacket`（接受通道创建握手也是一样）。当调用`recvPacket` 时，IBC处理程序将检查调用模块被授权接收和处理数据包（基于附带的证明和连接/通道的已知状态），执行适当的状态更新（递增序号以防止重放攻击），并将控制权返回给模块或抛出错误。
+IBC处理程序不直接调用模块。
 
-Although a bit counterintuitive to reason about at first, this pattern has a few notable advantages:
+尽管一开始的理解起来有点违反直觉，但这种模式有一些明显的优点：
 
-- It minimises requirements of the host state machine, since the IBC handler need not understand how to callinto other modules or store any references to them.
-- It avoids the necessity of managing a module lookup table in the handler state.
-- It avoids the necessity of dealing with module return data or failures. If a module does not want toreceive a packet (perhaps having implemented additional authorisation on top), it simply never calls`recvPacket`. If the routing logic were implemented in the IBC handler, the handler would need to dealwith the failure of the module, which is tricky to interpret.
+- 主机状态机的要求被降至最低，因为IBC处理程序不需要了解如何调用其他模块或存储对它们的任何引用。
+- 它避免了在处理程序状态里维护模块查找表的必要。
+- 它避免了处理模块返回数据或错误。如果某个模块不想收到一个数据包（也许已经在上层实现了额外的验证），它只需要简单的不去调用`recvPacket` 就可以了。如果路由逻辑是在IBC处理程序中实现的，那么处理程序将需要处理模块的错误，这很难解释。
 
-It also has one notable disadvantage:
+但它有一个明显的缺点：
 
-- Without an additional abstraction, the relayer logic becomes more complex, since off-chainrelayer processes will need to track the state of multiple modules to determine when packetscan be submitted.
+- 如果没有额外的抽象，中继器逻辑将变得更加复杂，因为链下中继器进程将需要跟踪多个模块的状态，以确定何时提交数据包。
 
-For this reason, there is an additional IBC "routing module" which exposes a call dispatch interface.
+因此，有一个额外的IBC“路由模块”，它暴露了一个调用分配接口。
 
-## Call dispatch
+## 调用分配
 
-For common relay patterns, an "IBC routing module" can be implemented which maintains a module dispatch table and simplifies the job of relayers.
+对于常见的中继模式，可以实现一个“ IBC路由模块”，该模块维护一个模块分配表来简化中继器的工作。
 
-In the call dispatch pattern, datagrams (contained within transaction types defined by the host state machine) are relayed directly
-to the routing module, which then looks up the appropriate module (owning the channel & port to which the datagram was addressed)
-and calls an appropriate function (which must have been previously registered with the routing module). This allows modules to
-avoid handling datagrams directly, and makes it harder to accidentally screw-up the atomic state transition execution which must
-happen in conjunction with sending or receiving a packet (since the module never handles packets directly, but rather exposes
-functions which are called by the routing module upon receipt of a valid packet).
+在调用分配模式中，数据报（包含在主机状态机定义的交易类型中）直接中继到路由模块，然后路由模块查找适当的模块（拥有数据报所寻址的通道和端口）并调用适当的函数（该函数必须事先已注册在路由模块中）。允许模块不去直接处理数据报，使得与发送或接收数据包同时发生的原子状态转换执行被意外搞乱变得更加困难（因为该模块从不直接处理数据包，而只是公开路由模块在收到有效数据包后调用的函数）。
 
-Additionally, the routing module can implement default logic for handshake datagram handling (accepting incoming handshakes
-on behalf of modules), which is convenient for modules which do not need to implement their own custom logic.
+此外，路由模块可以实现用于握手数据报处理的默认逻辑（代表模块接受传入的握手），这对于不需要实现自己的自定义逻辑的模块很方便。
