@@ -1,27 +1,27 @@
-This document defines a canonical encoding algorithm for data structures which must be encoded in a known fashion for cross-chain verification in the IBC protocol.
+该文件定义了用于数据结构的**典范**编码算法，必须使用已知的编码方式对数据结构进行编码，以便在IBC协议中进行跨链验证。
 
-The encoding function maps a typed value into a byte array.
+编码函数可以将一个有类型的值转换成对应的字节数组。
 
 ### 原始类型
 
-If a value has a primitive type, it is encoded without tags.
+如果一个值是原始类型，则将其编码而不使用标签。
 
-#### Numbers
+#### 数值类型
 
 该协议仅处理无符号整数。
 
-`uint32` and `uint64` types are encoded as fixed-size little-endian, with no sign bit.
+`uint32`和`uint64`类型使用小端序编码为固定大小的字节数组，没有符号位。
 
-#### Booleans
+#### 布尔类型
 
-Boolean values are encoded as single bits: `0x00` (false) and `0x01` (true).
+布尔值编码为单个位（bit）： `0x00` （false）和`0x01` （true）。
 
-#### Bytes
+#### 字节数组
 
-Byte arrays are encoded as-is with no length prefix or tag.
+字节数组按原样编码，不使用长度前缀或标签。
 
 ### 结构化类型
 
-Structured types with fields are encoded as proto3 `message`s with the appropriate fields.
+具有字段的结构化类型被编码为使用适当字段的proto3 `message` 。
 
-Canonical `.proto` files are provided with the specification.
+**典范**的`.proto`文件附带在了规范中。
