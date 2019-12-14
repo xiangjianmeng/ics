@@ -2,18 +2,18 @@
 
 **这是一组有关IBC协议的常见问题及其答案。**
 
-## Forks & unbonding periods
+## 分叉和解绑期
 
-*What happens to all of the established IBC channels if a chain forks?*
+*如果链分叉，所有已建立的IBC通道会怎样？*
 
-This depends on the light client algorithm. Tendermint light clients, at the moment, will halt the channel completely if a fork is detected (since it looks like equivocation) - if the fork doesn't use any sort of replay protection (e.g. change the chain ID). If one fork keeps the chain ID and the other picks a new one, the one which keeps it would be followed by the light client. If both forks change the chain ID (or validator set), they would both need new light clients.
+这取决于轻客户端算法。如果检测到分叉，对于目前的Tendermint轻客户端来说，如果分叉不使用任何种类的重放保护（例如，更改链ID），将完全挂起通道（因为它看起来像歧义错误）。如果一个分叉保留了原来的链ID，而另一个选择了一个新的ID，则轻客户端将跟随使用原来链ID的链。如果两个分叉都更改了链ID（或验证人集合），则它们都将需要新的轻客户端。
 
-*What happens after the unbonding period passes without an IBC packet to renew the channel? Are the escrowed tokens un-recoverable without intervention?*
+*解绑期过后在没有IBC数据包更新通道的情况下会发生什么？托管的通证是否在没有干预的情况下无法恢复？*
 
-By default, the tokens are un-recoverable. Governance intervention could alter the light client associated with the channel (there is no way to automate this that is safe). That said, it's always possible to construct light clients with different validation rules or to add the ability for a government proposal to reset the light client to a trusted header if it was previously valid and used, and if it was frozen due to the unbonding period.
+默认情况下，通证是不可恢复的。治理干预可能会更改与该通道关联的轻客户端（没有安全的方法可以自动执行此操作）。就是说，总是有可能用不同的验证规则构造轻型客户端，或者增加治理提议的功能，以将轻型客户端重置为受信任的区块头（如果先前有效并已使用，或由于解绑期而冻结） 。
 
 ## 数据流和数据包中继
 
 *为了发送IBC数据包，区块链A是否需要知道区块链B的可信赖节点的地址？*
 
-Blockchain A will know of the existence of Blockchain B after a kind of handshake takes place. This handshake is facilitated by a relayer. It is the responsibility of the relayer to access an available node of the corresponding blockchain to begin the handshake. The blockchains themselves need not know about nodes, just be able to access the transactions that are relayed between them.
+在握手后，区块链A会知道区块链B的存在。中继器用来达成这种握手。中继器负责访问相应区块链的可用节点以开始握手。区块链本身不需要知道节点，而只是能够访问在它们之间中继的交易。
